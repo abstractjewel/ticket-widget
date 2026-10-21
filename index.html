@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ticket Stubs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Courier+Prime:wght@400;700&family=Playfair+Display:ital,wght@1,700&display=swap">
+<style>
+  html, body { margin: 0; padding: 0; background: transparent; }
+  * { box-sizing: border-box; }
+  .tk-wrap { width: min(320px, 100%); margin: 20px auto; font-family: 'Courier Prime', 'Courier New', monospace; user-select: none; -webkit-user-select: none; }
+
+  .tk-filters { display: flex; justify-content: center; gap: 6px; flex-wrap: wrap; margin-bottom: 16px; }
+  .tk-chip { border: 1px solid #dcd8cf; background: #f4f1ea; color: #8e7051; border-radius: 999px; padding: 3px 11px; font-size: 11px; font-family: sans-serif; cursor: pointer; }
+  .tk-chip.on { background: #8e7051; border-color: #8e7051; color: #fff; }
+
+  .tk-stack { container-type: inline-size; position: relative; aspect-ratio: 2.3 / 1; margin: 0 6px 40px; cursor: pointer; outline: none; }
+  .tk-stack:focus-visible { outline: 2px solid #8e7051; outline-offset: 10px; border-radius: 6px; }
+
+  .ticket {
+    --bg: #f4ead5; --ink: #7a4b2a;
+    position: absolute; inset: 0; display: flex; color: var(--ink); background: var(--bg);
+    background-image: radial-gradient(120% 140% at 0% 0%, rgba(255,255,255,.45), transparent 55%),
+                      repeating-linear-gradient(0deg, rgba(0,0,0,.018) 0 1px, transparent 1px 3px);
+    border-radius: 1.5cqw;
+    -webkit-mask: radial-gradient(circle 3.4cqw at 72% 0, #0000 98%, #000) , radial-gradient(circle 3.4cqw at 72% 100%, #0000 98%, #000);
+    -webkit-mask-composite: source-in;
+            mask: radial-gradient(circle 3.4cqw at 72% 0, #0000 98%, #000) , radial-gradient(circle 3.4cqw at 72% 100%, #0000 98%, #000);
+            mask-composite: intersect;
+    filter: drop-shadow(0 4px 6px rgba(0,0,0,.18));
+    transition: transform .38s cubic-bezier(.3,.7,.3,1), opacity .38s;
+  }
+  .ticket.leaving { transform: translate(118%, -8%) rotate(12deg) !important; }
+
+  .t-main { width: 72%; padding: 4.5cqw 4cqw 4cqw 5.5cqw; display: flex; flex-direction: column; justify-content: space-between; position: relative; }
+  .t-main::before { content: ""; position: absolute; inset: 2.2cqw 1.6cqw 2.2cqw 2.2cqw; border: .35cqw solid var(--ink); opacity: .35; border-radius: 1cqw; pointer-events: none; }
+  .t-type { font-size: 3cqw; letter-spacing: .35em; text-transform: uppercase; font-weight: 700; }
+  .t-title { font-family: 'Playfair Display', Georgia, serif; font-style: italic; font-weight: 700; font-size: 7cqw; line-height: 1.05; color: var(--ink);
+             display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .t-venue { font-size: 3.4cqw; font-weight: 700; }
+  .t-row { display: flex; justify-content: space-between; gap: 2cqw; font-size: 3cqw; opacity: .85; }
+
+  .t-stub { width: 28%; border-left: .45cqw dashed var(--ink); border-color: color-mix(in srgb, var(--ink) 45%, transparent);
+            display: flex; flex-direction: column; align-items: center; justify-content: space-between; padding: 4.5cqw 1cqw 4cqw; text-align: center; }
+  .t-admit { writing-mode: vertical-rl; transform: rotate(180deg); font-weight: 700; font-size: 3.6cqw; letter-spacing: .3em; }
+  .t-stars { font-size: 3cqw; letter-spacing: .05em; }
+  .t-no { font-size: 2.5cqw; letter-spacing: .08em; opacity: .75; }
+
+  .tk-nav { display: flex; align-items: center; justify-content: space-between; font-size: 11px; color: #8e7051; padding: 0 4px; }
+  .tk-arrow { background: none; border: none; color: #8e7051; font-size: 22px; line-height: 1; padding: 0 6px; cursor: pointer; }
+  .tk-note { margin-top: 10px; min-height: 40px; padding: 9px 12px; border-radius: 8px; background: #f4f1ea; border: 1px solid #dcd8cf; color: #3b2f25;
+             font-size: 11px; line-height: 1.45; text-align: center; font-style: italic; }
+  .tk-hint { text-align: center; font-size: 10px; color: #8e7051; margin-top: 10px; font-family: sans-serif; }
+  .tk-empty { text-align: center; font-size: 12px; color: #8e7051; padding: 40px 0; }
+  @media (prefers-reduced-motion: reduce) { .ticket { transition: none; } }
+</style>
+</head>
+<body>
+
+<div class="tk-wrap">
+  <div class="tk-filters" id="tk-filters"></div>
+  <div class="tk-stack" id="tk-stack" tabindex="0" role="button" aria-label="Next ticket"></div>
+  <div class="tk-nav">
+    <button class="tk-arrow" id="tk-prev" aria-label="Previous ticket">‹</button>
+    <span id="tk-count"></span>
+    <button class="tk-arrow" id="tk-next" aria-label="Next ticket">›</button>
+  </div>
+  <div class="tk-note" id="tk-note" aria-live="polite"></div>
+  <div class="tk-hint">(Tap the ticket to flip through your stubs!)</div>
+</div>
+
+<script>
+// ===================== EDIT YOUR TICKETS HERE =====================
+//   type:   anything you like, e.g. "Movie", "Concert", "Show", "Museum"
+//           (each type you use becomes a filter button at the top)
+//   rating: 0 to 5 stars
+//   color:  "cream", "blush", "sage", "mist", "butter", or "lavender"
+const tickets = [
+  { type: "Movie",   title: "Practical Magic",       venue: "The Rose Theatre",  date: "Oct 31, 2025", seat: "Row F · Seat 12", rating: 5, color: "blush",
+    note: "Halloween rewatch with apple cider and blankets." },
+  { type: "Concert", title: "Autumn Acoustic Night", venue: "The Lantern Room",  date: "Oct 18, 2025", seat: "General Admission", rating: 4, color: "butter",
+    note: "Candlelit folk songs on a rainy night." },
+  { type: "Movie",   title: "Coraline",              venue: "Midnight Cinema",   date: "Sep 27, 2025", seat: "Row C · Seat 4", rating: 5, color: "mist",
+    note: "Still magical every single time." },
+  { type: "Show",    title: "The Nutcracker",        venue: "City Ballet Hall",  date: "Dec 14, 2024", seat: "Balcony · Seat 22", rating: 5, color: "lavender",
+    note: "Snow scene gave me chills." },
+  { type: "Concert", title: "Fall Folk Festival",    venue: "Riverside Park",    date: "Sep 6, 2025",  seat: "Lawn", rating: 4, color: "sage",
+    note: "Hot cocoa, string lights and harmonies." },
+  { type: "Movie",   title: "Twilight",              venue: "Drive-In Theater",  date: "Aug 22, 2025", seat: "Spot 9", rating: 4, color: "cream",
+    note: "PNW vibes on the big screen." }
+];
+// ===================================================================
+
+const COLORS = {
+  cream:    { bg: "#f4ead5", ink: "#7a4b2a" },
+  blush:    { bg: "#f2d6d0", ink: "#9b3d4a" },
+  sage:     { bg: "#dbe3cc", ink: "#4e6b3f" },
+  mist:     { bg: "#d5e0e6", ink: "#3d5f78" },
+  butter:   { bg: "#f3e3b3", ink: "#8a6420" },
+  lavender: { bg: "#e2d8ea", ink: "#634a80" }
+};
+const POS = [
+  "translate(0,0) rotate(-1.2deg)",
+  "translate(2.5%,8%) rotate(2.6deg)",
+  "translate(-2.5%,13%) rotate(-3.6deg)"
+];
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+let filter = "All", order = [], els = [], busy = false;
+
+function stars(n) { n = Math.max(0, Math.min(5, Math.round(n || 0))); return "★".repeat(n) + "☆".repeat(5 - n); }
+
+function buildFilters() {
+  const types = ["All", ...new Set(tickets.map(t => t.type).filter(Boolean))];
+  $("tk-filters").innerHTML = types.length > 2
+    ? types.map(t => `<button class="tk-chip ${t === filter ? "on" : ""}" data-f="${esc(t)}">${esc(t === "All" ? "All" : t + "s")}</button>`).join("")
+    : "";
+}
+
+function buildStack() {
+  const stack = $("tk-stack");
+  const list = tickets.map((t, i) => ({ t, i })).filter(x => filter === "All" || x.t.type === filter);
+  if (!list.length) { stack.innerHTML = `<div class="tk-empty">No tickets here yet</div>`; els = []; order = []; update(); return; }
+  stack.innerHTML = list.map(({ t, i }) => {
+    const c = COLORS[t.color] || COLORS.cream;
+    return `<div class="ticket" style="--bg:${c.bg};--ink:${c.ink}">
+      <div class="t-main">
+        <div class="t-type">${esc(t.type || "Admit")}</div>
+        <div class="t-title">${esc(t.title)}</div>
+        <div>
+          <div class="t-venue">${esc(t.venue)}</div>
+          <div class="t-row"><span>${esc(t.date)}</span><span>${esc(t.seat)}</span></div>
+        </div>
+      </div>
+      <div class="t-stub">
+        <div class="t-admit">ADMIT ONE</div>
+        <div class="t-stars" aria-label="${Math.round(t.rating || 0)} out of 5 stars">${stars(t.rating)}</div>
+        <div class="t-no">No. ${String(104729 + i * 7919).slice(-6)}</div>
+      </div>
+    </div>`;
+  }).join("");
+  els = [...stack.querySelectorAll(".ticket")];
+  order = els.map((_, k) => k);
+  layout(); update();
+}
+
+function layout() {
+  order.forEach((k, pos) => {
+    const el = els[k];
+    el.style.zIndex = String(100 - pos);
+    el.style.transform = POS[Math.min(pos, POS.length - 1)];
+    el.style.opacity = pos < POS.length ? "1" : "0";
+    el.setAttribute("aria-hidden", pos === 0 ? "false" : "true");
+  });
+}
+
+function update() {
+  const visible = tickets.filter(t => filter === "All" || t.type === filter);
+  if (!order.length) { $("tk-count").textContent = ""; $("tk-note").textContent = ""; return; }
+  const top = visible[order[0]];
+  $("tk-count").textContent = `Ticket ${order[0] + 1} of ${order.length}`;
+  $("tk-note").textContent = top.note ? `“${top.note}”` : "";
+}
+
+function next() {
+  if (busy || order.length < 2) return;
+  busy = true;
+  const top = els[order[0]];
+  top.classList.add("leaving");
+  setTimeout(() => {
+    top.classList.remove("leaving");
+    order.push(order.shift());
+    layout(); update();
+    setTimeout(() => { busy = false; }, 200);
+  }, 300);
+}
+function prev() {
+  if (busy || order.length < 2) return;
+  order.unshift(order.pop());
+  layout(); update();
+}
+
+$("tk-stack").addEventListener("click", next);
+$("tk-stack").addEventListener("keydown", e => {
+  if (e.key === "Enter" || e.key === " " || e.key === "ArrowRight") { e.preventDefault(); next(); }
+  if (e.key === "ArrowLeft") { e.preventDefault(); prev(); }
+});
+$("tk-next").addEventListener("click", next);
+$("tk-prev").addEventListener("click", prev);
+$("tk-filters").addEventListener("click", e => {
+  const b = e.target.closest("[data-f]"); if (!b) return;
+  filter = b.dataset.f; buildFilters(); buildStack();
+});
+
+buildFilters();
+buildStack();
+</script>
+</body>
+</html>
